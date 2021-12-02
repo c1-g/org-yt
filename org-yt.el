@@ -165,12 +165,14 @@ with one of the formats [[PROTOCOL:LINK]] or [[PROTOCOL:LINK][DESCRIPTION]] are 
 			  when (setq fun (plist-get (cdr link-par-entry) :image-data-fun))
 			  collect (cons (car link-par-entry) fun)))
 		(image-data-link-re (regexp-opt (mapcar 'car image-data-link-parameters)))
-		(re (format "\\[\\[\\(%s\\):\\([^]]+\\)\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
-			    image-data-link-re)))
+		(re (format "\\[\\[\\(%s\\):\\(?:image/png;base64,\\)?\\([^]]+\\)\\(?:%s\\)?\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
+                            image-data-link-re
+                            (substring (image-file-name-regexp) nil -2))))
        (while (re-search-forward re end t)
          (let* ((protocol (match-string-no-properties 1))
-		(link (match-string-no-properties 2))
-		(description (match-string-no-properties 3))
+		(link (concat (match-string-no-properties 3)
+                              (match-string-no-properties 4)))
+		(description (match-string-no-properties 5))
 		(image-data-link (assoc-string protocol image-data-link-parameters))
 		(el (save-excursion (goto-char (match-beginning 1)) (org-element-context)))
 		image-data)
