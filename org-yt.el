@@ -182,11 +182,7 @@ with one of the formats [[PROTOCOL:LINK]] or [[PROTOCOL:LINK][DESCRIPTION]] are 
                          (and old
                               (car-safe old)
                               (overlay-get (cdr old) 'display)))
-		       (funcall (cdr image-data-link) protocol link description)))
-             (when image-data
-               (let ((ol (org-image-update-overlay image-data el t t)))
-                 (when (and ol description)
-                   (overlay-put ol 'after-string description)))))))))))
+		       (funcall (cdr image-data-link) protocol link el description))))))))))
 
 (advice-add #'org-display-inline-images :after #'org-display-user-inline-images)
 
