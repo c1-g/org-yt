@@ -26,6 +26,7 @@
 
 (require 'org)
 (require 'org-element)
+(require 'deferred)
 
 (defcustom org-yt-url-protocol "yt"
   "Protocol identifier for youtube links."
@@ -106,18 +107,6 @@ This function is almost a duplicate of a part of `org-display-inline-images'."
               (push ov org-inline-image-overlays)
               ov)))))))
 
-(defun org-yt-get-image (url)
-  "Retrieve image from URL."
-  (let ((image-buf (url-retrieve-synchronously url)))
-    (when image-buf
-      (with-current-buffer image-buf
-        (goto-char (point-min))
-        (when (looking-at "HTTP/")
-          (delete-region (point-min)
-                         (progn (re-search-forward "\n[\n]+")
-                                (point))))
-        (buffer-substring-no-properties (point-min) (point-max))))))
-
 (defconst org-yt-video-id-regexp "[-_[:alnum:]]\\{10\\}[AEIMQUYcgkosw048]"
   "Regexp matching youtube video id's taken from `https://webapps.stackexchange.com/questions/54443/format-for-id-of-youtube-video'.")
 
@@ -125,16 +114,83 @@ This function is almost a duplicate of a part of `org-display-inline-images'."
   "Open youtube with VIDEO-ID."
   (browse-url (concat "https://youtu.be/" video-id)))
 
-(defun org-yt-image-data-fun (_protocol link _description)
+(defun org-yt-image-data-fun (_protocol link el description)
   "Get image corresponding to LINK from youtube.
 Use this as :image-data-fun property in `org-link-properties'.
 See `org-display-user-inline-images' for a description of :image-data-fun."
+  (setq link (url-filename (url-generic-parse-url link)))
   (when (string-match org-yt-video-id-regexp link)
-    (org-yt-get-image (format "http://img.youtube.com/vi/%s/0.jpg" link))))
+    (let ((vid-id (match-string 0 link)))
+      (save-excursion
+        (deferred:$
+          (deferred:url-retrieve (format
+                                  "http://img.youtube.com/vi/%s/0.jpg"
+                                  vid-id))
+          (deferred:nextc it
+            (lambda (buf)
+              (with-current-buffer buf
+                (goto-char (point-min))
+                (when (looking-at "HTTP/")
+                  (delete-region (point-min) (progn
+                                               (re-search-forward "\n[\n]+")
+                                               (point))))
+                (buffer-substring-no-properties (point-min) (point-max)))))
+          (deferred:nextc it
+            (lambda (overlay)
+              (when (and overlay description)
+                (overlay-put overlay 'after-string description)))))))))
 
 (org-link-set-parameters org-yt-url-protocol
 			 :follow #'org-yt-follow
 			 :image-data-fun #'org-yt-image-data-fun)
+
+(org-link-set-parameters
+ "http"
+ :image-data-fun #'org-image-link)
+
+(org-link-set-parameters
+ "https"
+ :image-data-fun #'org-image-link)
+
+(defun org-image-link (protocol link el &optional description)
+  "Interpret LINK as base64-encoded image data."
+  (when (string-match-p (image-file-name-regexp) link)
+    (let ((ov (make-overlay (org-element-property :begin el) (org-element-property :end el)))
+          (count 0) (anm "-/|\\-")
+          (end 50))
+      (deferred:$
+        (deferred:next
+          (lambda (_)
+            (message "Displaying image in %s" (concat protocol ":" link))
+            (push ov org-inline-image-overlays)))
+        (deferred:nextc it
+          (deferred:lambda (_)
+            (save-excursion
+              (when (< 0 count)
+                (overlay-put ov 'after-string ""))
+              (overlay-put ov 'after-string (concat " " (char-to-string
+                                                         (aref anm (% count (length anm)))))))
+            (if (> end (cl-incf count))
+                (deferred:nextc (deferred:wait 50) self))))
+        (deferred:url-retrieve (concat protocol ":" link))
+        (deferred:nextc it
+          (lambda (buf)
+            (with-current-buffer buf
+              (goto-char (point-min))
+              (re-search-forward "\r?\n\r?\n")
+              (buffer-substring-no-properties (point) (point-max)))))
+        (deferred:nextc it
+          (lambda (image-data)
+            (delete-overlay ov)
+            (save-excursion (org-image-update-overlay image-data el t t))))
+        (deferred:nextc it
+          (lambda (overlay)
+            (when (and overlay description)
+              (overlay-put overlay 'after-string description))))
+        (deferred:error it
+          (lambda (err)
+            (message "Failed to retrieve %s" (concat protocol ":" link))))))))
+
 
 (require 'subr-x)
 
@@ -165,8 +221,9 @@ with one of the formats [[PROTOCOL:LINK]] or [[PROTOCOL:LINK][DESCRIPTION]] are 
 			  when (setq fun (plist-get (cdr link-par-entry) :image-data-fun))
 			  collect (cons (car link-par-entry) fun)))
 		(image-data-link-re (regexp-opt (mapcar 'car image-data-link-parameters)))
-		(re (format "\\[\\[\\(%s\\):\\([^]]+\\)\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
-			    image-data-link-re)))
+                (re (format "\\[\\[\\(%s\\):\\(?:image/png;base64,\\)?\\([^]]+\\)\\(?:%s\\)?\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
+                            image-data-link-re
+                            (substring (image-file-name-regexp) nil -2))))
        (while (re-search-forward re end t)
          (let* ((protocol (match-string-no-properties 1))
 		(link (match-string-no-properties 2))
