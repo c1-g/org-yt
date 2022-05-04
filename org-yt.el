@@ -186,12 +186,12 @@ with one of the formats [[PROTOCOL:LINK]] or [[PROTOCOL:LINK][DESCRIPTION]] are 
                             (substring (image-file-name-regexp) nil -2))))
        (while (re-search-forward re end t)
          (let* ((protocol (match-string-no-properties 1))
-		(link (concat (match-string-no-properties 3)
-                              (match-string-no-properties 4)))
-		(description (match-string-no-properties 5))
-		(image-data-link (assoc-string protocol image-data-link-parameters))
-		(el (save-excursion (goto-char (match-beginning 1)) (org-element-context)))
-		image-data)
+                (link (concat (match-string-no-properties 2)
+                              (match-string-no-properties 3)))
+                (description (match-string-no-properties 4))
+                (image-data-link (assoc-string protocol image-data-link-parameters))
+                (el (save-excursion (goto-char (match-beginning 1)) (org-element-context)))
+                image-data)
            (when el
              (setq image-data
                    (or (let ((old (get-char-property-and-overlay
