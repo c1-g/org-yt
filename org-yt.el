@@ -170,12 +170,12 @@ with one of the formats [[PROTOCOL:LINK]] or [[PROTOCOL:LINK][DESCRIPTION]] are 
     (org-with-wide-buffer
      (goto-char (or beg (point-min)))
      (when-let ((image-data-link-parameters
-		 (cl-loop for link-par-entry in org-link-parameters
-			  with fun
-			  when (setq fun (plist-get (cdr link-par-entry) :image-data-fun))
-			  collect (cons (car link-par-entry) fun)))
-		(image-data-link-re (regexp-opt (mapcar 'car image-data-link-parameters)))
-		(re (format "\\[\\[\\(%s\\):\\(?:image/png;base64,\\)?\\([^]]+\\)\\(?:%s\\)?\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
+                 (cl-loop for link-par-entry in org-link-parameters
+                          with fun
+                          when (setq fun (plist-get (cdr link-par-entry) :image-data-fun))
+                          collect (cons (car link-par-entry) fun)))
+                (image-data-link-re (regexp-opt (mapcar 'car image-data-link-parameters)))
+                (re (format "\\[\\[\\(%s\\):\\(?:image/png;base64,\\)?\\([^]]+\\)\\(?:%s\\)?\\]\\(?:\\[\\([^]]+\\)\\]\\)?\\]"
                             image-data-link-re
                             (substring (image-file-name-regexp) nil -2))))
        (while (re-search-forward re end t)
