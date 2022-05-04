@@ -146,6 +146,12 @@ See `org-display-user-inline-images' for a description of :image-data-fun."
 			 :follow #'org-yt-follow
 			 :image-data-fun #'org-yt-image-data-fun)
 
+(org-link-set-parameters "http"
+                         :image-data-fun #'org-yt-get-image)
+
+(org-link-set-parameters "https"
+                         :image-data-fun #'org-yt-get-image)
+
 (require 'subr-x)
 
 (defun org-display-user-inline-images (&optional _include-linked _refresh beg end)
