@@ -26,6 +26,7 @@
 
 (require 'org)
 (require 'org-element)
+(require 'deferred)
 
 (defcustom org-yt-url-protocol "yt"
   "Protocol identifier for youtube links."
@@ -106,17 +107,26 @@ This function is almost a duplicate of a part of `org-display-inline-images'."
               (push ov org-inline-image-overlays)
               ov)))))))
 
-(defun org-yt-get-image (url)
+(defun org-yt-get-image (protocol link el description)
   "Retrieve image from URL."
-  (let ((image-buf (url-retrieve-synchronously url)))
-    (when image-buf
-      (with-current-buffer image-buf
+  (deferred:$
+   (deferred:url-retrieve (org-element-property :raw-link el))
+   (deferred:nextc
+    it
+    (lambda (buf)
+      (with-current-buffer buf
         (goto-char (point-min))
         (when (looking-at "HTTP/")
           (delete-region (point-min)
                          (progn (re-search-forward "\n[\n]+")
                                 (point))))
-        (buffer-substring-no-properties (point-min) (point-max))))))
+        (buffer-substring-no-properties (point-min) (point-max)))))
+   (deferred:nextc
+    it
+    (lambda (data)
+      (let ((ol (org-image-update-overlay data el t t)))
+        (when (and ol description)
+          (overlay-put ol 'after-string description)))))))
 
 (defconst org-yt-video-id-regexp "[-_[:alnum:]]\\{10\\}[AEIMQUYcgkosw048]"
   "Regexp matching youtube video id's taken from `https://webapps.stackexchange.com/questions/54443/format-for-id-of-youtube-video'.")
