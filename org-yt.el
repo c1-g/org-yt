@@ -152,6 +152,16 @@ See `org-display-user-inline-images' for a description of :image-data-fun."
  "https"
  :image-data-fun #'org-image-link)
 
+(org-link-set-parameters
+ "data"
+ :image-data-fun #'org-inline-data-image)
+
+(defun org-inline-data-image (_protocol link el &optional _description)
+  "Interpret LINK as base64-encoded image data."
+  (let ((image-data (base64-decode-string (replace-regexp-in-string "image/.*;base64," "" link))))
+    (deferred:next
+      (lambda () (save-excursion (org-image-update-overlay image-data el t t))))))
+
 (defun org-image-link (protocol link el &optional description)
   "Interpret LINK as base64-encoded image data."
   (when (string-match-p (image-file-name-regexp) link)
