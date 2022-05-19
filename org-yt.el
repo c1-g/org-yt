@@ -136,13 +136,17 @@ See `org-display-user-inline-images' for a description of :image-data-fun."
                                                (point))))
                 (buffer-substring-no-properties (point-min) (point-max)))))
           (deferred:nextc it
+            (lambda (image-data)
+              (save-excursion (org-image-update-overlay image-data el t t))))
+          (deferred:nextc it
             (lambda (overlay)
               (when (and overlay description)
                 (overlay-put overlay 'after-string description)))))))))
 
-(org-link-set-parameters org-yt-url-protocol
-			 :follow #'org-yt-follow
-			 :image-data-fun #'org-yt-image-data-fun)
+(org-link-set-parameters
+ org-yt-url-protocol
+ :follow #'org-yt-follow
+ :image-data-fun #'org-yt-image-data-fun)
 
 (org-link-set-parameters
  "http"
